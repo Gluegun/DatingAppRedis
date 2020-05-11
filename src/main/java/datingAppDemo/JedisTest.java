@@ -16,13 +16,14 @@ public class JedisTest {
     private static String key = "users";
 
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
 
         Jedis jedis = new Jedis();
 
         List<String> maleNames = Names.getMaleNames(); // генерируем случайных пользователей мужского пола
         List<String> femaleNames = Names.getFemaleNames(); // генерируем случайных пользователей женского пола
 
+        jedis.del(key);
 
         for (int i = 0; i < 20; i++) { // добавляем 20 пользователей на сайт
 
@@ -45,51 +46,37 @@ public class JedisTest {
 
         users.sort(Comparator.comparing(User::getRegistrationDate)); // сортируем пользователей по дате регистрации
 
-        users.forEach(u -> jedis.zadd(key, u.getRegistrationDate().getTime(), "User " + u.getId() + " " +
-                u.getName())); // заносим пользователей в Redis
 
-        printUsers(); // выводим на экран
+        users.forEach(u -> jedis.rpush(key, "User " + u.getId() + " " + u.getName()));
 
-
-    }
-
-    private static void printUsers() {
-
-        User user;
 
         for (int i = 0; ; i++) {
+            Long listSize = jedis.llen(key);
 
-            if (integer.get() >= users.size()) {
-                integer.set(0);
+            if (i >= 20) {
+                i = 0;
             }
 
-            int nextUser = integer.getAndIncrement();
-            User u = users.get(nextUser);
+            String user = jedis.lindex(key, i);
+            if (user == null) {
+                continue;
+            }
+
+            int randomUserId = random.nextInt(listSize.intValue());
+
 
             if (i > 1 && i % 10 == 0) {
-                int randomUserId = random.nextInt(users.size());
+                user = jedis.lindex(key, randomUserId);
 
-                for (User user1 : users) {
-                    if (user1.getId() == randomUserId) {
-                        u = user1;
-                        break;
-                    }
-                }
+                System.out.println("Пользователь " + user + " оплатил платную услугу");
 
-                System.out.println("Пользователь " + u.getId() + " " + u.getName() + " оплатил платную услугу");
-                System.out.println("На главной странице показываем пользователя: " + u);
-                printUsers();
-            }
-
-            System.out.println("На главной странице показываем пользователя: " + u);
-
-
-            try {
+                jedis.lrem(key, randomUserId, user);
                 Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
 
+            }
+
+            System.out.println("На главной странице показываем пользователя: " + user);
+
+        }
     }
 }
