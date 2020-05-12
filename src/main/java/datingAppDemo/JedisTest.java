@@ -1,5 +1,7 @@
 package datingAppDemo;
 
+import redis.clients.jedis.BinaryClient;
+import redis.clients.jedis.Client;
 import redis.clients.jedis.Jedis;
 
 import java.util.*;
@@ -50,33 +52,32 @@ public class JedisTest {
         users.forEach(u -> jedis.rpush(key, "User " + u.getId() + " " + u.getName()));
 
 
+
         for (int i = 0; ; i++) {
-            Long listSize = jedis.llen(key);
 
             if (i >= 20) {
                 i = 0;
             }
-
             String user = jedis.lindex(key, i);
-            if (user == null) {
-                continue;
-            }
 
-            int randomUserId = random.nextInt(listSize.intValue());
-
+            int randomUserId = random.nextInt(20);
 
             if (i > 1 && i % 10 == 0) {
-                user = jedis.lindex(key, randomUserId);
 
-                System.out.println("Пользователь " + user + " оплатил платную услугу");
+                String randomUser = jedis.lindex(key, randomUserId);
+                System.out.println("Пользователь " + randomUser + " оплатил платную услугу");
+                System.out.println("На главной странице показываем " + randomUser);
 
-                jedis.lrem(key, randomUserId, user);
-                Thread.sleep(1000);
-
+                jedis.lrem(key, randomUserId, randomUser);
+                jedis.linsert(key, BinaryClient.LIST_POSITION.BEFORE, user, randomUser);
+                Thread.sleep(2000);
             }
 
-            System.out.println("На главной странице показываем пользователя: " + user);
+            System.out.println("На главной странице показываем: " + user);
+            Thread.sleep(500);
 
         }
+
+
     }
 }
